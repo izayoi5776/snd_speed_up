@@ -26,7 +26,7 @@ public class WaveSpeed {
 	
 	public static void playSound() {
 	    try {
-	    	float sampleRate = 32000;	// base 16000 -> 32000 for 2x speed
+	    	float sampleRate = 16000;	// base 16000 -> 32000 for 2x speed
 	    	int sampleSizeInBits = 16;
 	    	int channels = 1;
 	    	boolean signed = true;
@@ -82,7 +82,7 @@ public class WaveSpeed {
 	// short[] -> byte[]
 	private static byte[] short2byte(Short buf[]) {
 		byte[] ret = new byte[buf.length * 2];
-		for(int i=0;i<buf.length;i+=2) {
+		for(int i=0;i<buf.length;i++) {
 			//ret[i*2]   = (byte) (buf[i] & 0x00ff);
 			//ret[i*2+1] = (byte) (buf[i] >> 8); 
 			ret[i*2]   = short2byte(buf[i])[0];
@@ -112,7 +112,10 @@ public class WaveSpeed {
 			Complex[] buff2 = Arrays.copyOfRange(buff, i, i+n);
 			Complex[] buff3 = FFT.fft(buff2);
 			Complex[] buff4 = half(buff3);
-			byte[] buf5 = ifft(buff4);
+			Complex[] buff5 = ifft(buff4);
+			//chk(buff2, buff5);
+			byte[] buf5 = complex2byte(buff5);
+			
 			bufb.addAll(array2List(buf5));
 		}
 		byte[] ret = new byte[bufb.size()];
@@ -131,23 +134,38 @@ public class WaveSpeed {
 	}
 	// 同じ長さの空白を追加、２倍長さにする、時間倍に、頻率を半分にする
 	private static Complex[] half(Complex[] buf) {
-		Complex[] ret = new Complex[buf.length*2];
+		Complex[] ret = new Complex[buf.length/2];
 		for(int i=0;i<ret.length;i++) {
-			if(i<buf.length) {
-				ret[i] = buf[i];
-			}else {
-				ret[i] = new Complex(0,0);
-			}
+			Complex b2 = buf[i*2].plus(buf[i+2+1]);
+				ret[i] = new Complex(b2.re()/2, b2.im()/2);
 		}
 		return ret;
 	}
-	// ifft実施後、時域で間引きし長さを半分にする、時間が半分、頻率は倍になるが、half()と相殺。
-	private static byte[] ifft(Complex[] buf) {
-		Complex[] ift= FFT.ifft(buf);
-		Short[] sa = new Short[ift.length/2];
+	private static byte[] complex2byte(Complex[] ift) {
+		Short[] sa = new Short[ift.length];
 		for(int i=0;i<sa.length;i++) {
 			sa[i] = (short)(ift[i].re());	// only 1st half
 		}
 		return short2byte(sa);
+	}
+	// ifft実施
+	private static Complex[] ifft(Complex[] buf) {
+		Complex[] ret = FFT.ifft(buf);
+		for(int i=0;i<ret.length;i++) {
+			ret[i] = new Complex(Math.round(ret[i].re()),0);
+		}
+		return ret;
+	}
+	private static void chk(Complex[] a, Complex[]b) {
+		if(a.length != b.length) {
+			System.out.println("a.length=" + a.length + " b.length=" + b.length);
+		}
+		for(int i=0;i<a.length;i++) {
+			double aa = a[i].re();
+			double bb = b[i].re(); 
+			if(aa != bb) {
+				System.out.println("i=" + i + " a=" + aa + " b=" + bb);
+			}
+		}
 	}
 }
